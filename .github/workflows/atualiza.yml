@@ -1,15 +1,31 @@
 name: Atualiza Federal Automatico
 on:
   schedule:
-    - cron: '0 2 * * 1,4'
+    - cron: '0 2 * * 4,0'
   workflow_dispatch:
+
 jobs:
   update:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - run: pip install requests
-      - run: python scripts/atualiza_federal.py
+
+      - name: Fix DNS
+        run: |
+          echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf
+          echo "nameserver 1.1.1.1" | sudo tee -a /etc/resolv.conf
+          cat /etc/resolv.conf
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install deps
+        run: pip install requests
+
+      - name: Run script
         env:
           TURSO_URL: ${{ secrets.TURSO_URL }}
           TURSO_TOKEN: ${{ secrets.TURSO_TOKEN }}
+        run: python scripts/atualiza_federal.py
