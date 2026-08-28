@@ -1,5 +1,6 @@
-import requests, os
+import requests, os, socket
 from datetime import datetime
+import json
 
 TURSO_URL = os.environ["TURSO_URL"].rstrip("/") + "/v2/pipeline"
 TURSO_TOKEN = os.environ["TURSO_TOKEN"]
@@ -14,35 +15,58 @@ def exec_sql(sql):
     payload = {"requests": [{"type":"execute","stmt":{"sql": sql}}]}
     return requests.post(TURSO_URL, headers=H, json=payload).json()
 
-urls = [
-    "https://servicebus.caixa.gov.br/portaldeloterias/api/federal",
-    "https://loteriascaixa-api.herdapps.com.br/api/federal/ultimo",
-    "https://api.guidi.dev.br/loteria/federal/ultimo"
+def get_with_doh(host, path):
+    # 1. tenta pegar IP via Cloudflare DNS
+    try:
+        doh = requests.get(f"https://cloudflare-dns.com/dns-query?name={host}&type=A",
+                            headers={"accept":"application/dns-json"}, timeout=10).json()
+        ip = doh['Answer'][0]['data']
+        print(f"DNS DOH {host} -> {ip}")
+        # 2. busca usando IP mas com Host header
+        url_ip = f"https://{ip}{path}"
+        r = requests.get(url_ip, headers={"Host": host, "User-Agent":"Mozilla/5.0"}, verify=False, timeout=20)
+        if r.status_code == 200:
+            return r.json()
+    except Exception as e:
+        print(f"DOH falhou {host}: {e}")
+    return None
+
+targets = [
+    ("servicebus.caixa.gov.br", "/portaldeloterias/api/federal"),
+    ("loteriascaixa-api.herdapps.com.br", "/api/federal/ultimo"),
+    ("api.guidi.dev.br", "/loteria/federal/ultimo")
 ]
 
 data = None
-for url in urls:
+for host, path in targets:
+    print(f"Tentando {host}")
+    # tenta normal
     try:
-        print(f"Tentando {url}")
-        r = requests.get(url, timeout=20, headers={"User-Agent":"Mozilla/5.0"})
+        r = requests.get(f"https://{host}{path}", timeout=15, headers={"User-Agent":"Mozilla/5.0"})
         if r.status_code == 200:
             j = r.json()
-            if isinstance(j, list):
-                j = j[0]
+            if isinstance(j, list): j = j[0]
             data = j
-            print(f"OK em {url}")
+            print(f"OK normal em {host}")
             break
     except Exception as e:
-        print(f"Falhou {url}: {e}")
+        print(f"Normal falhou, tentando DOH")
+
+    # tenta via DOH
+    j = get_with_doh(host, path)
+    if j:
+        if isinstance(j, list): j = j[0]
+        data = j
+        break
 
 if not data:
     print("Todas APIs falharam")
     exit(1)
 
-# tenta extrair data e premios de qualquer formato
+print(f"Dados: {str(data)[:600]}")
+
 try:
     data_caixa = data.get('dataApuracao') or data.get('data') or data.get('dataConcurso') or ""
-    # alguns vem com 2025-08-27
     if "/" in data_caixa:
         data_fmt = datetime.strptime(data_caixa, "%d/%m/%Y").strftime("%Y-%m-%d")
     else:
@@ -50,7 +74,6 @@ try:
 except:
     data_fmt = datetime.now().strftime("%Y-%m-%d")
 
-# extrai os 5 premios
 premios = []
 lista = data.get('listaDezenas') or data.get('dezenas') or data.get('numeros') or []
 for p in lista[:5]:
@@ -62,7 +85,6 @@ for p in lista[:5]:
 print(f"Resultado {data_fmt} - {premios}")
 
 if len(premios) < 5:
-    print(f"Erro: veio incompleto {premios}")
     exit(1)
 
 check = query(f"SELECT id FROM resultados WHERE banca_id=1 AND data='{data_fmt}'")['rows']
