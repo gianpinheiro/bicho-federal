@@ -87,4 +87,3 @@ if st.button(f"Consultar {premio_sel}", type="primary", use_container_width=True
         st.success(f"✅ {len(linhas)} concursos analisados - {premio_sel}")
         st.dataframe(df, use_container_width=True, hide_index=True)
 
-st.info("Dica: 07-Carneiro 67 dias = faz 67 dias que o Carneiro não sai nesse prêmio")
