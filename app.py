@@ -2,9 +2,9 @@ import requests
 import streamlit as st
 from datetime import datetime
 
-# --- CONFIG ---
-URL = "https://bichodb-gianpinheiro.aws-ap-northeast-1.turso.io/v2/pipeline"
-TOKEN = "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3ODc4MzAxNDIsImlkIjoiMDFhMDNmODEtMjcwMS03ZDQ4LThlMTMtNmEwMGU3NzcyY2Y4Iiwia2lkIjoiOHR3Y1BvVzlHR0pHbFpoM1RZMm9ZOGJzX0poVnVDOEVEY2lmeG43MFVJWSIsInJpZCI6IjNhMjA0YzMwLWQyMzctNDllOC1iNzEyLWFiZmQ0MmEzOGFkZSJ9.UlOJQAAfgGzCJWH0ivGHm_iJdLQDS7fmx1SxOzNsRUWbLkT4RS2VIW6pR7WfHB930DUzb-yUFXI4kfJjpEHpAQ"
+# --- CONFIG - SEGURO ---
+URL = st.secrets["TURSO_URL"]
+TOKEN = st.secrets["TURSO_TOKEN"]
 headers = {"Authorization": f"Bearer {TOKEN}", "Content-Type": "application/json"}
 
 def dezena_to_bicho(dz):
