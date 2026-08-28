@@ -3,7 +3,7 @@ import streamlit as st
 from datetime import datetime
 
 # --- CONFIG - SEGURO ---
-URL = st.secrets["TURSO_URL"]
+URL = st.secrets["TURSO_URL"].rstrip("/") + "/v2/pipeline"
 TOKEN = st.secrets["TURSO_TOKEN"]
 headers = {"Authorization": f"Bearer {TOKEN}", "Content-Type": "application/json"}
 
