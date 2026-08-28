@@ -1,7 +1,7 @@
 name: Atualiza Federal Automatico
 on:
   schedule:
-    - cron: '0 21 * * 3,6'
+    - cron: '0 21 * * 0,3'
   workflow_dispatch:
 jobs:
   update:
