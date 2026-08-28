@@ -39,10 +39,34 @@ def numero_para_bicho(num_str):
         return (n - 1) // 4 + 1
     except: return None
 
-# Carrega bancas e bichos
+def buscar_federal():
+    urls = [
+        "https://loteriascaixa-api.vercel.app/api/federal/latest",
+        "https://api.guidi.dev.br/loteria/federal/ultimo"
+    ]
+    for url in urls:
+        try:
+            r = requests.get(url, timeout=15).json()
+            if 'listaDezenas' in r:
+                data = r['dataApuracao']
+                premios = [p['numero'] if isinstance(p, dict) else p for p in r['listaDezenas'][:5]]
+                return data, premios
+            if 'data' in r and 'dezenas' in r:
+                return r['data'], r['dezenas'][:5]
+            if 'concurso' in r and 'dezenas' in str(r):
+                data = r.get('data') or r.get('dataApuracao')
+                dezenas = r.get('dezenas') or r.get('listaDezenas')
+                if dezenas:
+                    premios = [d if isinstance(d, str) else d.get('numero','') for d in dezenas[:5]]
+                    return data, premios
+        except Exception:
+            continue
+    return None, None
+
 bancas_raw = query("SELECT id, nome FROM banca_sorteios ORDER BY nome")['rows']
 bancas_list = [(int(r[0]['value']), r[1]['value']) for r in bancas_raw]
 map_bancas = {id: nome for id, nome in bancas_list}
+
 bichos_raw = query("SELECT id, nome FROM bicho ORDER BY id")['rows']
 map_bicho = {int(r[0]['value']): r[1]['value'] for r in bichos_raw}
 
@@ -129,14 +153,18 @@ with tab2:
 
         st.markdown("---")
         st.subheader("🤖 Atualização Automática - FEDERAL")
-        st.caption("Busca o último resultado direto da Caixa")
         if st.button("🔄 Buscar último resultado da Caixa"):
-            try:
-                url_caixa = "https://servicebus.caixa.gov.br/portaldeloterias/api/federal"
-                r = requests.get(url_caixa, timeout=15, headers={"User-Agent":"Mozilla/5.0"}).json()
-                data_caixa = r['dataApuracao'] # 26/08/2026
-                data_fmt = datetime.strptime(data_caixa, "%d/%m/%Y").strftime("%Y-%m-%d")
-                premios = [p['numero'] for p in r['listaDezenas'][:5]]
+            data_caixa, premios = buscar_federal()
+            if not data_caixa:
+                st.error("APIs da Caixa estão fora agora. Use o cadastro manual.")
+            else:
+                try:
+                    data_fmt = datetime.strptime(data_caixa[:10], "%d/%m/%Y").strftime("%Y-%m-%d")
+                except:
+                    try:
+                        data_fmt = datetime.strptime(data_caixa[:10], "%Y-%m-%d").strftime("%Y-%m-%d")
+                    except:
+                        data_fmt = datetime.now().strftime("%Y-%m-%d")
                 st.write(f"Encontrado: {data_caixa} - {premios}")
                 check = query(f"SELECT id FROM resultados WHERE banca_id=1 AND data='{data_fmt}'")['rows']
                 if check:
@@ -146,8 +174,6 @@ with tab2:
                     exec_sql(sql)
                     st.success(f"✅ Federal {data_caixa} salva automaticamente!")
                     st.balloons()
-            except Exception as e:
-                st.error(f"Erro ao buscar na Caixa: {e}")
 
         if st.button("Sair do Admin"):
             st.session_state.admin_auth = False
