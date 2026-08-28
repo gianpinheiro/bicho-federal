@@ -1,0 +1,16 @@
+name: Atualiza Federal Automatico
+on:
+  schedule:
+    - cron: '0 21 * * 3,6'
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: pip install requests
+      - run: python scripts/atualiza_federal.py
+        env:
+          TURSO_URL: ${{ secrets.TURSO_URL }}
+          TURSO_TOKEN: ${{ secrets.TURSO_TOKEN }}
