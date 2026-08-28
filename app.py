@@ -40,26 +40,28 @@ def numero_para_bicho(num_str):
     except: return None
 
 def buscar_federal():
+    # tenta direto na CAIXA primeiro, que é mais estável
     urls = [
+        "https://servicebus2.caixa.gov.br/portaldeloterias/api/federal",
+        "https://servicebus.caixa.gov.br/portaldeloterias/api/federal",
         "https://loteriascaixa-api.vercel.app/api/federal/latest",
-        "https://api.guidi.dev.br/loteria/federal/ultimo"
     ]
     for url in urls:
         try:
-            r = requests.get(url, timeout=15).json()
-            if 'listaDezenas' in r:
-                data = r['dataApuracao']
-                premios = [p['numero'] if isinstance(p, dict) else p for p in r['listaDezenas'][:5]]
-                return data, premios
-            if 'data' in r and 'dezenas' in r:
-                return r['data'], r['dezenas'][:5]
-            if 'concurso' in r and 'dezenas' in str(r):
-                data = r.get('data') or r.get('dataApuracao')
-                dezenas = r.get('dezenas') or r.get('listaDezenas')
-                if dezenas:
-                    premios = [d if isinstance(d, str) else d.get('numero','') for d in dezenas[:5]]
+            r = requests.get(url, timeout=20, headers={"User-Agent": "Mozilla/5.0"})
+            j = r.json()
+            # Formato oficial da Caixa
+            if "listaDezenas" in j and "dataApuracao" in j:
+                return j["dataApuracao"], j["listaDezenas"][:5]
+            # Formato vercel
+            if "listaDezenas" in str(j).lower():
+                data = j.get("dataApuracao") or j.get("data") or j.get("date")
+                dezenas = j.get("listaDezenas") or j.get("dezenas")
+                if data and dezenas:
+                    premios = [d["numero"] if isinstance(d, dict) else str(d) for d in dezenas[:5]]
                     return data, premios
-        except Exception:
+        except Exception as e:
+            print(f"Falha {url}: {e}")
             continue
     return None, None
 
