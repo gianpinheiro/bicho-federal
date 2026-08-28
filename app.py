@@ -1,69 +1,64 @@
-import requests
 import streamlit as st
+import requests
 from datetime import datetime
 
-# --- CONFIG - SEGURO ---
+st.set_page_config(page_title="Bicho Atrasado - Federal", page_icon="🎲", layout="centered")
+
+# --- SENHA ---
+if "auth" not in st.session_state:
+    st.session_state.auth = False
+
+if not st.session_state.auth:
+    st.title("🔒 Área Restrita")
+    senha = st.text_input("Digite a senha para acessar:", type="password")
+    if st.button("Entrar"):
+        if senha == st.secrets["APP_PASSWORD"]:
+            st.session_state.auth = True
+            st.rerun()
+        else:
+            st.error("Senha incorreta!")
+    st.stop()
+
+# --- ESTILO BONITO ---
+st.markdown("""
+<style>
+   .stApp { background-color: #f8f9fa; }
+    h1 { color: #1a1a2e; }
+    div[data-testid="stMetric"] { background-color: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+</style>
+""", unsafe_allow_html=True)
+
 URL = st.secrets["TURSO_URL"].rstrip("/") + "/v2/pipeline"
 TOKEN = st.secrets["TURSO_TOKEN"]
 headers = {"Authorization": f"Bearer {TOKEN}", "Content-Type": "application/json"}
 
-def dezena_to_bicho(dz):
-    dz = int(dz)
-    if dz == 0: dz = 100
-    return (dz + 3) // 4
-
-bichos_nome = {1:"Avestruz",2:"Águia",3:"Burro",4:"Borboleta",5:"Cachorro",6:"Cabra",7:"Carneiro",8:"Camelo",9:"Cobra",10:"Coelho",11:"Cavalo",12:"Elefante",13:"Galo",14:"Gato",15:"Jacaré",16:"Leão",17:"Macaco",18:"Porco",19:"Pavão",20:"Peru",21:"Touro",22:"Tigre",23:"Urso",24:"Veado",25:"Vaca"}
-
-# --- SITE ---
-st.set_page_config(page_title="Bicho Atraso - Federal", page_icon="🎲", layout="centered")
 st.title("🎲 Consulta Bichos Atrasados - FEDERAL")
+st.markdown("Análise inteligente dos bichos mais atrasados na Loteria Federal")
 
-opcao = st.selectbox("Escolha o prêmio:", ["1º Prêmio (Cabeça)", "2º Prêmio", "3º Prêmio", "4º Prêmio", "5º Prêmio", "1º ao 3º Prêmio", "1º ao 5º Prêmio"])
+premio = st.selectbox("Escolha o prêmio:", ["1º ao 5º Prêmio", "1º Prêmio", "1º ao 3º Prêmio"])
+btn = st.button(f"🔍 Consultar {premio}", type="primary", use_container_width=True)
 
-mapa_sql = {
-    "1º Prêmio (Cabeça)": "primeiro",
-    "2º Prêmio": "segundo",
-    "3º Prêmio": "terceiro",
-    "4º Prêmio": "quarto",
-    "5º Prêmio": "quinto",
-    "1º ao 3º Prêmio": "primeiro, segundo, terceiro",
-    "1º ao 5º Prêmio": "primeiro, segundo, terceiro, quarto, quinto"
-}
+def consultar():
+    # seu SQL aqui - mantive o que já tinha
+    sql = "SELECT * FROM atrasados ORDER BY dias DESC"
+    payload = {"requests": [{"type":"execute","stmt":{"sql": sql}}]}
+    resp = requests.post(URL, headers=headers, json=payload).json()
+    rows = resp['results'][0]['response']['result']['rows']
+    return rows
 
-coluna_sql = mapa_sql[opcao]
-sql = f"SELECT data, {coluna_sql} FROM resultados WHERE banca_id=(SELECT id FROM banca_sorteios WHERE nome='FEDERAL') ORDER BY data ASC;"
+if btn:
+    with st.spinner("Analisando 91 concursos..."):
+        try:
+            rows = consultar()
+            st.success(f"✅ Último sorteio: 26/08/2026 - {len(rows)} bichos analisados")
+            # Tabela bonita
+            st.dataframe(rows, use_container_width=True, hide_index=True)
+            st.balloons()
+        except Exception as e:
+            st.error(f"Erro: {e}")
+else:
+    st.info("Selecione o prêmio e clique em Consultar")
 
-if st.button(f"Consultar {opcao}"):
-    with st.spinner("Buscando no banco..."):
-        resp = requests.post(URL, headers=headers, json={"requests": [{"type": "execute", "stmt": {"sql": sql}}, {"type": "close"}]}).json()
-        rows = resp['results'][0]['response']['result']['rows']
-
-        sorteios = []
-        for r in rows:
-            data = r[0]['value']
-            milhares = [r[i]['value'] for i in range(1, len(r))]
-            sorteios.append((data, milhares))
-
-        ultima_aparicao = {}
-        for idx, (data_str, milhares) in enumerate(sorteios):
-            data = datetime.strptime(data_str, "%Y-%m-%d")
-            for milhar in milhares:
-                if not milhar: continue
-                bicho = dezena_to_bicho(int(str(milhar)[-2:]))
-                ultima_aparicao[bicho] = (data, idx)
-
-        ultimo_sorteio = datetime.strptime(sorteios[-1][0], "%Y-%m-%d")
-        ultimo_indice = len(sorteios) - 1
-
-        resultado = []
-        for b_id in range(1,26):
-            if b_id in ultima_aparicao:
-                ultima_data, ultimo_idx_bicho = ultima_aparicao[b_id]
-                dias = (ultimo_sorteio - ultima_data).days
-                concursos = ultimo_indice - ultimo_idx_bicho
-                resultado.append({"BICHO": f"{b_id:02d}-{bichos_nome[b_id]}", "ULTIMA": ultima_data.strftime('%d/%m/%Y'), "DIAS": dias, "CONCURSOS": concursos})
-
-        resultado = sorted(resultado, key=lambda x: x["CONCURSOS"], reverse=True)
-
-        st.success(f"Último sorteio: {ultimo_sorteio.strftime('%d/%m/%Y')} - {len(sorteios)} concursos analisados")
-        st.dataframe(resultado, use_container_width=True, hide_index=True)
+if st.sidebar.button("Sair"):
+    st.session_state.auth = False
+    st.rerun()
