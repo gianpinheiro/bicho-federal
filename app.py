@@ -111,8 +111,9 @@ with tab1:
                         ultima = info["data"].strftime("%d/%m/%Y")
                     else:
                         dias = 999; concursos = len(linhas); ultima = "Nunca"
-                    lista.append({"Bicho": f"{bicho_id:02d} - {nome}", "Dias Atrasado": dias, "Concursos Atrasados": concursos, "Última vez": ultima})
-                df = pd.DataFrame(lista).sort_values("Dias Atrasado", ascending=False)
+                    lista.append({"Bicho": f"{bicho_id:02d} - {nome}", "Dias": dias, "Concursos": concursos, "Última vez": ultima})
+                        df = pd.DataFrame(lista).sort_values("Dias", ascending=False).reset_index(drop=True)
+                        df.insert(0, "Col.", [f"{i+1}º" for i in range(len(df))])
                 st.success(f"✅ {len(linhas)} concursos de {map_bancas[banca_id_sel]} - {premio_sel}")
                 st.dataframe(df, use_container_width=True, hide_index=True)
 
