@@ -40,7 +40,6 @@ def numero_para_bicho(num_str):
     except: return None
 
 def buscar_federal():
-    # tenta direto na CAIXA primeiro, que é mais estável
     urls = [
         "https://servicebus2.caixa.gov.br/portaldeloterias/api/federal",
         "https://servicebus.caixa.gov.br/portaldeloterias/api/federal",
@@ -50,10 +49,8 @@ def buscar_federal():
         try:
             r = requests.get(url, timeout=20, headers={"User-Agent": "Mozilla/5.0"})
             j = r.json()
-            # Formato oficial da Caixa
             if "listaDezenas" in j and "dataApuracao" in j:
                 return j["dataApuracao"], j["listaDezenas"][:5]
-            # Formato vercel
             if "listaDezenas" in str(j).lower():
                 data = j.get("dataApuracao") or j.get("data") or j.get("date")
                 dezenas = j.get("listaDezenas") or j.get("dezenas")
@@ -110,10 +107,12 @@ with tab1:
                         concursos = info["concursos"]
                         ultima = info["data"].strftime("%d/%m/%Y")
                     else:
-                        dias = 999; concursos = len(linhas); ultima = "Nunca"
+                        dias = 999
+                        concursos = len(linhas)
+                        ultima = "Nunca"
                     lista.append({"Bicho": f"{bicho_id:02d} - {nome}", "Dias": dias, "Concursos": concursos, "Última vez": ultima})
-                        df = pd.DataFrame(lista).sort_values("Dias", ascending=False).reset_index(drop=True)
-                        df.insert(0, "Col.", [f"{i+1}º" for i in range(len(df))])
+                df = pd.DataFrame(lista).sort_values("Dias", ascending=False).reset_index(drop=True)
+                df.insert(0, "Col.", [f"{i+1}º" for i in range(len(df))])
                 st.success(f"✅ {len(linhas)} concursos de {map_bancas[banca_id_sel]} - {premio_sel}")
                 st.dataframe(df, use_container_width=True, hide_index=True)
 
@@ -153,7 +152,6 @@ with tab2:
                         exec_sql(sql)
                         st.success(f"✅ Salvo! {map_bancas[banca_id_cad]} - {data_sorteio.strftime('%d/%m/%Y')}")
                         st.balloons()
-
         st.markdown("---")
         st.subheader("🤖 Atualização Automática - FEDERAL")
         if st.button("🔄 Buscar último resultado da Caixa"):
@@ -177,7 +175,6 @@ with tab2:
                     exec_sql(sql)
                     st.success(f"✅ Federal {data_caixa} salva automaticamente!")
                     st.balloons()
-
         if st.button("Sair do Admin"):
             st.session_state.admin_auth = False
             st.rerun()
