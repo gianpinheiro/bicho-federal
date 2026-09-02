@@ -77,14 +77,12 @@ with tab1:
     opcoes = ["1º Prêmio", "2º Prêmio", "3º Prêmio", "4º Prêmio", "5º Prêmio", "1º ao 3º Prêmio", "1º ao 5º Prêmio"]
     premio_sel = st.selectbox("Escolha a consulta:", opcoes, index=0)
 
-    # BOTÕES LADO A LADO
     c_a, c_b = st.columns([3, 1.5])
     with c_a:
         btn_consultar = st.button(f"Consultar {premio_sel} - {map_bancas[banca_id_sel]}", type="primary", use_container_width=True)
     with c_b:
         btn_ultimo = st.button("👁️ Último jogo", use_container_width=True)
 
-    # NOVO: MOSTRAR ÚLTIMO JOGO CADASTRADO
     if btn_ultimo:
         ult = query(f"SELECT data, primeiro, segundo, terceiro, quarto, quinto FROM resultados WHERE banca_id={banca_id_sel} ORDER BY date(data) DESC LIMIT 1")['rows']
         if not ult:
@@ -97,7 +95,11 @@ with tab1:
             except:
                 data_formatada = data_ult
             st.info(f"**Último jogo de {map_bancas[banca_id_sel]} - {data_formatada}**")
-            st.write(f"**1º:** {l[1]['value']} | **2º:** {l[2]['value']} | **3º:** {l[3]['value']} | **4º:** {l[4]['value']} | **5º:** {l[5]['value']}")
+            premios = [l[1]['value'], l[2]['value'], l[3]['value'], l[4]['value'], l[5]['value']]
+            for i, milhar in enumerate(premios, start=1):
+                b_id = numero_para_bicho(milhar)
+                b_nome = map_bicho.get(b_id, "Desconhecido")
+                st.write(f"**{i}º - {milhar} - {b_nome}**")
 
     if btn_consultar:
         with st.spinner(f"Analisando {map_bancas[banca_id_sel]}..."):
