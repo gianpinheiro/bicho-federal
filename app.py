@@ -57,9 +57,7 @@ def buscar_federal():
                 if data and dezenas:
                     premios = [d["numero"] if isinstance(d, dict) else str(d) for d in dezenas[:5]]
                     return data, premios
-        except Exception as e:
-            print(f"Falha {url}: {e}")
-            continue
+        except: continue
     return None, None
 
 bancas_raw = query("SELECT id, nome FROM banca_sorteios ORDER BY nome")['rows']
@@ -77,8 +75,31 @@ with tab1:
     sel_banca_idx = st.selectbox("Escolha a BANCA:", banca_nomes, index=0)
     banca_id_sel = bancas_list[banca_nomes.index(sel_banca_idx)][0]
     opcoes = ["1º Prêmio", "2º Prêmio", "3º Prêmio", "4º Prêmio", "5º Prêmio", "1º ao 3º Prêmio", "1º ao 5º Prêmio"]
-    premio_sel = st.selectbox("Escolha a consulta:", opcoes, index=5)
-    if st.button(f"Consultar {premio_sel} - {map_bancas[banca_id_sel]}", type="primary", use_container_width=True):
+    premio_sel = st.selectbox("Escolha a consulta:", opcoes, index=0)
+
+    # BOTÕES LADO A LADO
+    c_a, c_b = st.columns([3, 1.5])
+    with c_a:
+        btn_consultar = st.button(f"Consultar {premio_sel} - {map_bancas[banca_id_sel]}", type="primary", use_container_width=True)
+    with c_b:
+        btn_ultimo = st.button("👁️ Último jogo", use_container_width=True)
+
+    # NOVO: MOSTRAR ÚLTIMO JOGO CADASTRADO
+    if btn_ultimo:
+        ult = query(f"SELECT data, primeiro, segundo, terceiro, quarto, quinto FROM resultados WHERE banca_id={banca_id_sel} ORDER BY date(data) DESC LIMIT 1")['rows']
+        if not ult:
+            st.warning(f"Nenhum jogo cadastrado para {map_bancas[banca_id_sel]}")
+        else:
+            l = ult[0]
+            data_ult = l[0]['value']
+            try:
+                data_formatada = datetime.strptime(data_ult, "%Y-%m-%d").strftime("%d/%m/%Y")
+            except:
+                data_formatada = data_ult
+            st.info(f"**Último jogo de {map_bancas[banca_id_sel]} - {data_formatada}**")
+            st.write(f"**1º:** {l[1]['value']} | **2º:** {l[2]['value']} | **3º:** {l[3]['value']} | **4º:** {l[4]['value']} | **5º:** {l[5]['value']}")
+
+    if btn_consultar:
         with st.spinner(f"Analisando {map_bancas[banca_id_sel]}..."):
             res = query(f"SELECT data, primeiro, segundo, terceiro, quarto, quinto FROM resultados WHERE banca_id={banca_id_sel} ORDER BY date(data) DESC LIMIT 365")
             linhas = res['rows']
