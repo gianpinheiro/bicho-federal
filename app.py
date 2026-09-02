@@ -92,11 +92,16 @@ with tab1:
             data_ult = l[0]['value']
             try:
                 data_formatada = datetime.strptime(data_ult, "%Y-%m-%d").strftime("%d/%m/%Y")
+                dt_obj = datetime.strptime(data_ult, "%Y-%m-%d")
             except:
                 data_formatada = data_ult
+                dt_obj = datetime.now()
 
-            # TÍTULO CENTRALIZADO
-            st.markdown(f'<div style="text-align:center; background-color:#e3f2fd; padding:12px; border-radius:8px; margin-bottom:12px; font-weight:bold; color:#0d47a1; font-size:16px;">Último jogo de {map_bancas[banca_id_sel]} - {data_formatada}</div>', unsafe_allow_html=True)
+            dias_semana = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"]
+            dia_semana = dias_semana[dt_obj.weekday()]
+
+            # NOVO TÍTULO COMO VOCÊ PEDIU
+            st.markdown(f'<div style="text-align:center; background-color:#e3f2fd; padding:12px; border-radius:8px; margin-bottom:12px; font-weight:bold; color:#0d47a1; font-size:16px;">Último Sorteio: {map_bancas[banca_id_sel]} - {data_formatada} ({dia_semana})</div>', unsafe_allow_html=True)
 
             premios = [l[1]['value'], l[2]['value'], l[3]['value'], l[4]['value'], l[5]['value']]
             html = '<div style="text-align:center; background-color:#ffffff; padding:20px; border-radius:12px; border:1px solid #dee2e6; line-height:2.4;">'
