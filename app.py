@@ -94,10 +94,12 @@ with tab1:
                 data_formatada = datetime.strptime(data_ult, "%Y-%m-%d").strftime("%d/%m/%Y")
             except:
                 data_formatada = data_ult
-            st.info(f"**Último jogo de {map_bancas[banca_id_sel]} - {data_formatada}**")
-            premios = [l[1]['value'], l[2]['value'], l[3]['value'], l[4]['value'], l[5]['value']]
 
-            html = '<div style="text-align:center; background-color:#f8f9fa; padding:20px; border-radius:12px; border:1px solid #dee2e6; line-height:2.4;">'
+            # TÍTULO CENTRALIZADO
+            st.markdown(f'<div style="text-align:center; background-color:#e3f2fd; padding:12px; border-radius:8px; margin-bottom:12px; font-weight:bold; color:#0d47a1; font-size:16px;">Último jogo de {map_bancas[banca_id_sel]} - {data_formatada}</div>', unsafe_allow_html=True)
+
+            premios = [l[1]['value'], l[2]['value'], l[3]['value'], l[4]['value'], l[5]['value']]
+            html = '<div style="text-align:center; background-color:#ffffff; padding:20px; border-radius:12px; border:1px solid #dee2e6; line-height:2.4;">'
             for i, milhar in enumerate(premios, start=1):
                 b_id = numero_para_bicho(milhar)
                 b_nome = map_bicho.get(b_id, "Desconhecido")
