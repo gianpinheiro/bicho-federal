@@ -99,7 +99,8 @@ with tab1:
             for i, milhar in enumerate(premios, start=1):
                 b_id = numero_para_bicho(milhar)
                 b_nome = map_bicho.get(b_id, "Desconhecido")
-                st.write(f"**{i}º - {milhar} - {b_nome}**")
+                milhar_4 = str(milhar)[-4:] # PEGA SÓ OS 4 ÚLTIMOS
+                st.write(f"**{i}º - {milhar_4} - {b_nome}**")
 
     if btn_consultar:
         with st.spinner(f"Analisando {map_bancas[banca_id_sel]}..."):
