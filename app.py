@@ -96,11 +96,15 @@ with tab1:
                 data_formatada = data_ult
             st.info(f"**Último jogo de {map_bancas[banca_id_sel]} - {data_formatada}**")
             premios = [l[1]['value'], l[2]['value'], l[3]['value'], l[4]['value'], l[5]['value']]
+
+            html = '<div style="text-align:center; background-color:#f8f9fa; padding:20px; border-radius:12px; border:1px solid #dee2e6; line-height:2.4;">'
             for i, milhar in enumerate(premios, start=1):
                 b_id = numero_para_bicho(milhar)
                 b_nome = map_bicho.get(b_id, "Desconhecido")
-                milhar_4 = str(milhar)[-4:] # PEGA SÓ OS 4 ÚLTIMOS
-                st.write(f"**{i}º - {milhar_4} - {b_nome}**")
+                milhar_4 = str(milhar)[-4:].zfill(4)
+                html += f'<div style="font-size:16px;"><b>{i}º Prêmio - {milhar_4} - {b_nome}</b></div>'
+            html += '</div>'
+            st.markdown(html, unsafe_allow_html=True)
 
     if btn_consultar:
         with st.spinner(f"Analisando {map_bancas[banca_id_sel]}..."):
