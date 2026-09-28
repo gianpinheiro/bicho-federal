@@ -41,9 +41,9 @@ def numero_para_bicho(num_str):
 
 def buscar_federal():
     urls = [
-        "https://servicebus2.caixa.gov.br/portaldeloterias/api/federal",
-        "https://servicebus.caixa.gov.br/portaldeloterias/api/federal",
-        "https://loteriascaixa-api.vercel.app/api/federal/latest",
+        "https://caixa.gov.br",
+        "https://caixa.gov.br",
+        "https://vercel.app",
     ]
     for url in urls:
         try:
@@ -77,7 +77,7 @@ with tab1:
     opcoes = ["1º Prêmio", "2º Prêmio", "3º Prêmio", "4º Prêmio", "5º Prêmio", "1º ao 3º Prêmio", "1º ao 5º Prêmio"]
     premio_sel = st.selectbox("Escolha a consulta:", opcoes, index=0)
 
-    # NOVO FILTRO: Calendário para consulta por data
+    # Filtro de data retroativa
     data_limite = st.date_input("Consultar atrasados ATÉ a data:", value=date.today())
     data_limite_str = data_limite.strftime("%Y-%m-%d")
 
@@ -88,7 +88,6 @@ with tab1:
         btn_ultimo = st.button("👁️ Último jogo", use_container_width=True)
 
     if btn_ultimo:
-        # Filtra para trazer o último jogo ocorrido ATÉ a data selecionada
         ult = query(f"SELECT data, primeiro, segundo, terceiro, quarto, quinto FROM resultados WHERE banca_id={banca_id_sel} AND date(data) <= date('{data_limite_str}') ORDER BY date(data) DESC LIMIT 1")['rows']
         if not ult:
             st.warning(f"Nenhum jogo cadastrado para {map_bancas[banca_id_sel]} até {data_limite.strftime('%d/%m/%Y')}")
@@ -119,7 +118,6 @@ with tab1:
 
     if btn_consultar:
         with st.spinner(f"Analisando {map_bancas[banca_id_sel]}..."):
-            # Filtra o histórico limitando à data estipulada no seletor
             res = query(f"SELECT data, primeiro, segundo, terceiro, quarto, quinto FROM resultados WHERE banca_id={banca_id_sel} AND date(data) <= date('{data_limite_str}') ORDER BY date(data) DESC LIMIT 365")
             linhas = res['rows']
             if not linhas:
@@ -128,9 +126,9 @@ with tab1:
                 idx_map = {"1º Prêmio":[0], "2º Prêmio":[1], "3º Prêmio":[2], "4º Prêmio":[3], "5º Prêmio":[4], "1º ao 3º Prêmio":[0,1,2], "1º ao 5º Prêmio":[0,1,2,3,4]}
                 idxs = idx_map[premio_sel]
                 ultima_info = {}
-                for pos, tabular_row in enumerate(linhas):
-                    data_str = tabular_row[0]['value']
-                    numeros = [tabular_row[1]['value'], tabular_row[2]['value'], tabular_row[3]['value'], tabular_row[4]['value'], tabular_row[5]['value']]
+                for pos, linha in enumerate(linhas):
+                    data_str = linha[0]['value']
+                    numeros = [linha[1]['value'], linha[2]['value'], linha[3]['value'], linha[4]['value'], linha[5]['value']]
                     for i in idxs:
                         b = numero_para_bicho(numeros[i])
                         if b and b not in ultima_info:
@@ -138,9 +136,7 @@ with tab1:
                             except: dt = datetime.now()
                             ultima_info[b] = {"data": dt, "concursos": pos}
                 
-                # A base de cálculo de dias agora é a data escolhida (retroativa) e não o hoje real
                 data_base_calculo = datetime.combine(data_limite, datetime.min.time())
-                
                 lista = []
                 for bicho_id in range(1, 26):
                     nome = map_bicho.get(bicho_id, f"Bicho {bicho_id}")
@@ -191,5 +187,9 @@ with tab2:
                     st.error("Preencha todos os prêmios!")
                 else:
                     data_str_cad = data_cad.strftime("%Y-%m-%d")
-                    sql_insert = f"""
-                    INSERT INTO resultados (banca_id, data, primeiro, segundo, terceiro, quarto, quinto)
+                    sql_insert = f"INSERT INTO resultados (banca_id, data, primeiro, segundo, terceiro, quarto, quinto) VALUES ({banca_id_cad}, '{data_str_cad}', '{p1}', '{p2}', '{p3}', '{p4}', '{p5}')"
+                    r = exec_sql(sql_insert)
+                    if "error" in str(r).lower():
+                        st.error(f"Erro ao salvar no banco: {r}")
+                    else:
+                        st.success("Sorteio cadastrado com sucesso!")
