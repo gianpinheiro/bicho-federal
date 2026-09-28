@@ -151,20 +151,18 @@ with tab1:
                 if not linhas:
                     st.warning(f"Nenhum resultado para {map_bancas[banca_id_sel]} até a data selecionada.")
                 else:
-                    idx_map = {
-                        "1º Prêmio":, 
-                        "2º Prêmio":, 
-                        "3º Prêmio":, 
-                        "4º Prêmio":, 
-                        "5º Prêmio":, 
-                        "1º ao 3º Prêmio":, 
-                        "1º ao 5º Prêmio": [0, 1, 2, 3, 4]
-                    }
-                    idxs = idx_map[premio_sel]
+                    if premio_sel == "1º Prêmio": idxs = [0]
+                    elif premio_sel == "2º Prêmio": idxs = [1]
+                    elif premio_sel == "3º Prêmio": idxs = [2]
+                    elif premio_sel == "4º Prêmio": idxs = [3]
+                    elif premio_sel == "5º Prêmio": idxs = [4]
+                    elif premio_sel == "1º ao 3º Prêmio": idxs = [0, 1, 2]
+                    else: idxs = [0, 1, 2, 3, 4]
+                    
                     ultima_info = {}
                     for pos, linha in enumerate(linhas):
                         data_str = linha[0]['value']
-                        numeros = [linha[1]['value'], linha[2]['value'], linha[3]['value'], linha[4]['value'], server_val := linha[5]['value']]
+                        numeros = [linha[1]['value'], linha[2]['value'], linha[3]['value'], linha[4]['value'], linha[5]['value']]
                         for i in idxs:
                             b = numero_para_bicho(numeros[i])
                             if b and b not in ultima_info:
