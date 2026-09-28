@@ -70,7 +70,7 @@ bancas_list = [(int(r[0]['value']), r[1]['value']) for r in bancas_raw]
 map_bancas = {id: nome for id, nome in bancas_list}
 
 bichos_raw = query("SELECT id, nome FROM bicho ORDER BY id")['rows']
-map_bicho = {int(r[0]['value']): r[1]['value'] for r in bichos_raw}
+map_bicho = {int(r[0]['value']): r['value'] for r in bichos_raw}
 
 st.title("🎲 Bichos Atrasados")
 tab1, tab2 = st.tabs(["📊 Consultar", "➕ Cadastrar Resultado"])
@@ -90,7 +90,7 @@ with tab1:
         "1º ao 3º Prêmio", 
         "1º ao 5º Prêmio"
     ]
-    premio_sel = st.selectbox("Escolha a consulta:", opcoes, index=1)
+    premio_sel = st.selectbox("Escolha a consulta:", opcoes, index=0)
 
     data_limite = st.date_input("Escolha a data da consulta:", value=date.today())
     data_limite_str = data_limite.strftime("%Y-%m-%d")
@@ -157,20 +157,21 @@ with tab1:
                     st.warning(f"Nenhum resultado para {map_bancas[banca_id_sel]} até a data selecionada.")
                 else:
                     if premio_sel == "1º Prêmio": 
-                        idxs = [0]
+                        str_map = "0"
                     elif premio_sel == "2º Prêmio": 
-                        idxs = [1]
+                        str_map = "1"
                     elif premio_sel == "3º Prêmio": 
-                        idxs = [2]
+                        str_map = "2"
                     elif premio_sel == "4º Prêmio": 
-                        idxs = [3]
+                        str_map = "3"
                     elif premio_sel == "5º Prêmio": 
-                        idxs = [4]
+                        str_map = "4"
                     elif premio_sel == "1º ao 3º Prêmio": 
-                        idxs = [0, 1, 2]
+                        str_map = "0,1,2"
                     else: 
-                        idxs = [0, 1, 2, 3, 4]
+                        str_map = "0,1,2,3,4"
                     
+                    idxs = [int(x) for x in str_map.split(",")]
                     ultima_info = {}
                     for pos, linha in enumerate(linhas):
                         data_str = linha[0]['value']
@@ -203,4 +204,3 @@ with tab1:
                     df.insert(0, "Col.", [f"{i+1}º" for i in range(len(df))])
                     
                     msg_sucesso = f"✅ {len(linhas)} concursos analisados de {map_bancas[banca_id_sel]} - {premio_sel} (Até {data_limite.strftime('%d/%m/%Y')})"
-                    st.success(msg_sucesso)
