@@ -148,15 +148,23 @@ with tab1:
             with st.spinner(f"Analisando {map_bancas[banca_id_sel]}..."):
                 res = query(f"SELECT data, primeiro, segundo, terceiro, quarto, quinto FROM resultados WHERE banca_id={banca_id_sel} AND date(data) <= date('{data_limite_str}') ORDER BY date(data) DESC LIMIT 365")
                 linhas = res['rows']
-                if not lines:
+                if not linhas:
                     st.warning(f"Nenhum resultado para {map_bancas[banca_id_sel]} até a data selecionada.")
                 else:
-                    idx_map = {"1º Prêmio":[0], "2º Prêmio":[1], "3º Prêmio":[2], "4º Prêmio":[3], "5º Prêmio":[4], "1º ao 3º Prêmio":[0,1,2], "1º ao 5º Prêmio":[0,1,2,3,4]}
+                    idx_map = {
+                        "1º Prêmio":, 
+                        "2º Prêmio":, 
+                        "3º Prêmio":, 
+                        "4º Prêmio":, 
+                        "5º Prêmio":, 
+                        "1º ao 3º Prêmio":, 
+                        "1º ao 5º Prêmio": [0, 1, 2, 3, 4]
+                    }
                     idxs = idx_map[premio_sel]
                     ultima_info = {}
                     for pos, linha in enumerate(linhas):
                         data_str = linha[0]['value']
-                        numeros = [linha[1]['value'], linha[2]['value'], linha[3]['value'], broadband[4]['value'], linha[5]['value']]
+                        numeros = [linha[1]['value'], linha[2]['value'], linha[3]['value'], linha[4]['value'], linha[5]['value']]
                         for i in idxs:
                             b = numero_para_bicho(numeros[i])
                             if b and b not in ultima_info:
@@ -190,9 +198,3 @@ with tab2:
         if st.button("Liberar Cadastro"):
             if senha_admin == st.secrets["ADMIN_PASSWORD"]:
                 st.session_state.admin_auth = True
-                st.rerun()
-            else:
-                st.error("Senha admin incorreta!")
-    else:
-        st.success("Admin liberado!")
-        with st.form("cadastro_manual"):
