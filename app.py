@@ -164,7 +164,7 @@ with tab1:
                     ultima_info = {}
                     for pos, linha in enumerate(linhas):
                         data_str = linha[0]['value']
-                        numeros = [linha[1]['value'], linha[2]['value'], linha[3]['value'], linha[4]['value'], linha[5]['value']]
+                        numeros = [linha[1]['value'], linha[2]['value'], linha[3]['value'], linha[4]['value'], server_val := linha[5]['value']]
                         for i in idxs:
                             b = numero_para_bicho(numeros[i])
                             if b and b not in ultima_info:
@@ -197,4 +197,3 @@ with tab2:
         senha_admin = st.text_input("Senha ADMIN:", type="password", key="admin_pass")
         if st.button("Liberar Cadastro"):
             if senha_admin == st.secrets["ADMIN_PASSWORD"]:
-                st.session_state.admin_auth = True
