@@ -75,7 +75,6 @@ with tab1:
     sel_banca_idx = st.selectbox("Escolha a BANCA:", banca_nomes, index=0)
     banca_id_sel = bancas_list[banca_nomes.index(sel_banca_idx)][0]
     
-    # ADICIONADO: Opção para ver o resultado exato do dia selecionado
     opcoes = [
         "Ver Resultado do Dia",
         "1º Prêmio", 
@@ -88,7 +87,6 @@ with tab1:
     ]
     premio_sel = st.selectbox("Escolha a consulta:", opcoes, index=0)
 
-    # Campo de digitação/seleção da data desejada
     data_limite = st.date_input("Escolha a data da consulta:", value=date.today())
     data_limite_str = data_limite.strftime("%Y-%m-%d")
 
@@ -98,7 +96,6 @@ with tab1:
     with c_b:
         btn_ultimo = st.button("👁️ Último jogo", use_container_width=True)
 
-    # Ação do botão de Ver Último Jogo (Mantido até a data estipulada)
     if btn_ultimo:
         ult = query(f"SELECT data, primeiro, segundo, terceiro, quarto, quinto FROM resultados WHERE banca_id={banca_id_sel} AND date(data) <= date('{data_limite_str}') ORDER BY date(data) DESC LIMIT 1")['rows']
         if not ult:
@@ -128,23 +125,15 @@ with tab1:
             html += '</div>'
             st.markdown(html, unsafe_allow_html=True)
 
-    # Ação principal do botão Consultar
     if btn_consultar:
-        # NOVA CONDICIONAL: Se escolheu ver o resultado exato daquele dia digitado
         if premio_sel == "Ver Resultado do Dia":
-            with st.spinner(f"Buscando resultado de {data_limite.strftime('%d/%m/%Y')}..."):
+            with st.spinner(f"Buscando..."):
                 res_dia = query(f"SELECT data, primeiro, segundo, terceiro, quarto, quinto FROM resultados WHERE banca_id={banca_id_sel} AND date(data) = date('{data_limite_str}') LIMIT 1")['rows']
                 
                 if not res_dia:
                     st.error(f"❌ Nenhum sorteio cadastrado para a banca {map_bancas[banca_id_sel]} no dia {data_limite.strftime('%d/%m/%Y')}.")
                 else:
                     l = res_dia[0]
-                    dt_obj = datetime.strptime(l[0]['value'], "%Y-%m-%d")
-                    dias_semana = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"]
-                    dia_semana = dias_semana[dt_obj.weekday()]
-
-                    st.markdown(f'<div style="text-align:center; background-color:#e8f5e9; padding:12px; border-radius:8px; margin-bottom:12px; font-weight:bold; color:#1b5e20; font-size:16px;">Resultado Encontrado: {map_bancas[banca_id_sel]} - {data_limite.strftime("%d/%m/%Y")} ({dia_semana})</div>', unsafe_allow_html=True)
-
                     premios = [l[1]['value'], l[2]['value'], l[3]['value'], l[4]['value'], l[5]['value']]
                     html = '<div style="text-align:center; background-color:#ffffff; padding:20px; border-radius:12px; border:1px solid #dee2e6; line-height:2.4;">'
                     for i, milhar in enumerate(premios, start=1):
@@ -155,12 +144,11 @@ with tab1:
                     html += '</div>'
                     st.markdown(html, unsafe_allow_html=True)
         
-        # Comportamento antigo: Calcula a tabela de estatísticas de bichos atrasados
         else:
             with st.spinner(f"Analisando {map_bancas[banca_id_sel]}..."):
                 res = query(f"SELECT data, primeiro, segundo, terceiro, quarto, quinto FROM resultados WHERE banca_id={banca_id_sel} AND date(data) <= date('{data_limite_str}') ORDER BY date(data) DESC LIMIT 365")
                 linhas = res['rows']
-                if not linhas:
+                if not lines:
                     st.warning(f"Nenhum resultado para {map_bancas[banca_id_sel]} até a data selecionada.")
                 else:
                     idx_map = {"1º Prêmio":[0], "2º Prêmio":[1], "3º Prêmio":[2], "4º Prêmio":[3], "5º Prêmio":[4], "1º ao 3º Prêmio":[0,1,2], "1º ao 5º Prêmio":[0,1,2,3,4]}
@@ -168,7 +156,7 @@ with tab1:
                     ultima_info = {}
                     for pos, linha in enumerate(linhas):
                         data_str = linha[0]['value']
-                        numeros = [linha[1]['value'], linha[2]['value'], linha[3]['value'], linha[4]['value'], linha[5]['value']]
+                        numeros = [linha[1]['value'], linha[2]['value'], linha[3]['value'], broadband[4]['value'], linha[5]['value']]
                         for i in idxs:
                             b = numero_para_bicho(numeros[i])
                             if b and b not in ultima_info:
@@ -189,3 +177,22 @@ with tab1:
                             dias = 999
                             concursos = len(linhas)
                             ultima = "Nunca"
+                        lista.append({"Bicho": f"{bicho_id:02d} - {nome}", "Dias": dias, "Concursos": concursos, "Última vez": ultima})
+                    df = pd.DataFrame(lista).sort_values("Dias", ascending=False).reset_index(drop=True)
+                    df.insert(0, "Col.", [f"{i+1}º" for i in range(len(df))])
+                    st.success(f"✅ {len(linhas)} concursos analisados de {map_bancas[banca_id_sel]} - {premio_sel} (Até {data_limite.strftime('%d/%m/%Y')})")
+                    st.dataframe(df, use_container_width=True, hide_index=True)
+
+with tab2:
+    st.subheader("🔐 Cadastro - Admin")
+    if not st.session_state.admin_auth:
+        senha_admin = st.text_input("Senha ADMIN:", type="password", key="admin_pass")
+        if st.button("Liberar Cadastro"):
+            if senha_admin == st.secrets["ADMIN_PASSWORD"]:
+                st.session_state.admin_auth = True
+                st.rerun()
+            else:
+                st.error("Senha admin incorreta!")
+    else:
+        st.success("Admin liberado!")
+        with st.form("cadastro_manual"):
