@@ -70,7 +70,7 @@ bancas_list = [(int(r[0]['value']), r[1]['value']) for r in bancas_raw]
 map_bancas = {id: nome for id, nome in bancas_list}
 
 bichos_raw = query("SELECT id, nome FROM bicho ORDER BY id")['rows']
-map_bicho = {int(r[0]['value']): r['value'] for r in bichos_raw}
+map_bicho = {int(r[0]['value']): r[1]['value'] for r in bichos_raw}
 
 st.title("🎲 Bichos Atrasados")
 tab1, tab2 = st.tabs(["📊 Consultar", "➕ Cadastrar Resultado"])
@@ -157,27 +157,27 @@ with tab1:
                     st.warning(f"Nenhum resultado para {map_bancas[banca_id_sel]} até a data selecionada.")
                 else:
                     if premio_sel == "1º Prêmio": 
-                        str_map = "0"
-                    elif premio_sel == "2º Prêmio": 
                         str_map = "1"
-                    elif premio_sel == "3º Prêmio": 
+                    elif premio_sel == "2º Prêmio": 
                         str_map = "2"
-                    elif premio_sel == "4º Prêmio": 
+                    elif premio_sel == "3º Prêmio": 
                         str_map = "3"
-                    elif premio_sel == "5º Prêmio": 
+                    elif premio_sel == "4º Prêmio": 
                         str_map = "4"
+                    elif premio_sel == "5º Prêmio": 
+                        str_map = "5"
                     elif premio_sel == "1º ao 3º Prêmio": 
-                        str_map = "0,1,2"
+                        str_map = "1,2,3"
                     else: 
-                        str_map = "0,1,2,3,4"
+                        str_map = "1,2,3,4,5"
                     
                     idxs = [int(x) for x in str_map.split(",")]
                     ultima_info = {}
                     for pos, linha in enumerate(linhas):
                         data_str = linha[0]['value']
-                        numeros = [linha[1]['value'], linha[2]['value'], linha[3]['value'], linha[4]['value'], linha[5]['value']]
                         for i in idxs:
-                            b = numero_para_bicho(numeros[i])
+                            milhar = linha[i]['value']
+                            b = numero_para_bicho(milhar)
                             if b and b not in ultima_info:
                                 try: 
                                     dt = datetime.strptime(data_str, "%Y-%m-%d")
@@ -204,3 +204,4 @@ with tab1:
                     df.insert(0, "Col.", [f"{i+1}º" for i in range(len(df))])
                     
                     msg_sucesso = f"✅ {len(linhas)} concursos analisados de {map_bancas[banca_id_sel]} - {premio_sel} (Até {data_limite.strftime('%d/%m/%Y')})"
+                    st.success(msg_sucesso)
