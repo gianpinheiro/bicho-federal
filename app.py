@@ -26,18 +26,20 @@ TOKEN = st.secrets["TURSO_TOKEN"]
 H = {"Authorization": f"Bearer {TOKEN}", "Content-Type": "application/json"}
 
 def query(sql):
-    payload = {"requests": [{"type":"execute","stmt":{"sql": sql}}]}
-    r = requests.post(URL, headers=H, json=payload).json()
-    # Retorna diretamente a lista de linhas para evitar quebras
     try:
+        payload = {"requests": [{"type":"execute","stmt":{"sql": sql}}]}
+        r = requests.post(URL, headers=H, json=payload, timeout=15).json()
         return r['results'][0]['response']['result']
     except Exception as e:
-        st.error(f"Erro na resposta do Turso: {e}")
+        # Se falhar, retorna uma estrutura em branco segura para o código não travar
         return {"rows": []}
 
 def exec_sql(sql):
-    payload = {"requests": [{"type":"execute","stmt":{"sql": sql}}]}
-    return requests.post(URL, headers=H, json=payload).json()
+    try:
+        payload = {"requests": [{"type":"execute","stmt":{"sql": sql}}]}
+        return requests.post(URL, headers=H, json=payload, timeout=15).json()
+    except Exception as e:
+        return None
 
 def numero_para_bicho(num_str):
     try:
@@ -70,36 +72,30 @@ def buscar_federal():
             continue
     return None, None
 
-# --- PROCESSAMENTO SEGURO DOS DADOS DO TURSO ---
-bancas_raw = query("SELECT id, nome FROM banca_sorteios ORDER BY nome").get('rows', [])
+# --- PROCESSAMENTO SEGURO DOS DADOS INICIAIS ---
 bancas_list = []
 map_bancas = {}
+try:
+    bancas_raw = query("SELECT id, nome FROM banca_sorteios ORDER BY nome").get('rows', [])
+    # Tratamento utilizando os índices numéricos exatos fornecidos pelo Turso Pipeline [0] e [1]
+    bancas_list = [(int(r[0]['value']), str(r[1]['value'])) for r in bancas_raw if len(r) >= 2]
+    map_bancas = {id: nome for id, nome in bancas_list}
+except Exception as e:
+    st.sidebar.error(f"Erro ao processar bancas: {e}")
 
-for row in bancas_raw:
-    try:
-        # Pega de forma posicional e extrai o dicionário interno do Turso
-        bid = int(row[0]['value'])
-        bnome = str(row[1]['value'])
-        bancas_list.append((bid, bnome))
-        map_bancas[bid] = bnome
-    except Exception as e:
-        continue
-
-bichos_raw = query("SELECT id, nome FROM bicho ORDER BY id").get('rows', [])
-map_bicho = {}
-for row in bichos_raw:
-    try:
-        bicho_id = int(row[0]['value'])
-        bicho_nome = str(row[1]['value'])
-        map_bicho[bicho_id] = bicho_nome
-    except Exception as e:
-        continue
-
-# Fallbacks de segurança caso o banco falhe em responder de primeira
+# Fallback de segurança para garantir a construção dos componentes visuais
 if not bancas_list:
-    bancas_list = [(1, "Federal")]
-    map_bancas = {1: "Federal"}
+    bancas_list = [(1, "Banca Padrão")]
+    map_bancas = {1: "Banca Padrão"}
 
+map_bicho = {}
+try:
+    bichos_raw = query("SELECT id, nome FROM bicho ORDER BY id").get('rows', [])
+    map_bicho = {int(r[0]['value']): str(r[1]['value']) for r in bichos_raw if len(r) >= 2}
+except Exception as e:
+    st.sidebar.error(f"Erro ao processar bichos: {e}")
+
+# --- INTERFACE DO USUÁRIO ---
 st.title("🎲 Bichos Atrasados")
 tab1, tab2 = st.tabs(["📊 Consultar", "➕ Cadastrar Resultado"])
 
@@ -130,10 +126,10 @@ with tab1:
         btn_ultimo = st.button("👁️ Último jogo", use_container_width=True)
 
     if btn_ultimo:
-        ult_res = query(f"SELECT data, primeiro, segundo, terceiro, quarto, quinto FROM resultados WHERE banca_id={banca_id_sel} AND date(data) <= date('{data_limite_str}') ORDER BY date(data) DESC LIMIT 1")
-        ult = ult_res.get('rows', [])
+        ult_data = query(f"SELECT data, primeiro, segundo, terceiro, quarto, quinto FROM resultados WHERE banca_id={banca_id_sel} AND date(data) <= date('{data_limite_str}') ORDER BY date(data) DESC LIMIT 1")
+        ult = ult_data.get('rows', [])
         if not ult:
-            st.warning(f"Nenhum jogo cadastrado para {map_bancas[banca_id_sel]} até {data_limite.strftime('%d/%m/%Y')}")
+            st.warning(f"Nenhum jogo cadastrado para {map_bancas.get(banca_id_sel, 'Banca')} até {data_limite.strftime('%d/%m/%Y')}")
         else:
             l = ult[0]
             data_ult = l[0]['value']
@@ -147,7 +143,7 @@ with tab1:
             dias_semana = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"]
             dia_semana = dias_semana[dt_obj.weekday()]
 
-            st.markdown(f'<div style="text-align:center; background-color:#e3f2fd; padding:12px; border-radius:8px; margin-bottom:12px; font-weight:bold; color:#0d47a1; font-size:16px;">Último Sorteio considerado: {map_bancas[banca_id_sel]} - {data_formatada} ({dia_semana})</div>', unsafe_allow_html=True)
+            st.markdown(f'<div style="text-align:center; background-color:#e3f2fd; padding:12px; border-radius:8px; margin-bottom:12px; font-weight:bold; color:#0d47a1; font-size:16px;">Último Sorteio considerado: {map_bancas.get(banca_id_sel, "Banca")} - {data_formatada} ({dia_semana})</div>', unsafe_allow_html=True)
 
             premios = [l[1]['value'], l[2]['value'], l[3]['value'], l[4]['value'], l[5]['value']]
             html = '<div style="text-align:center; background-color:#ffffff; padding:20px; border-radius:12px; border:1px solid #dee2e6; line-height:2.4;">'
@@ -162,11 +158,11 @@ with tab1:
     if btn_consultar:
         if premio_sel == "Ver Resultado do Dia":
             with st.spinner("Buscando..."):
-                res_dia_query = query(f"SELECT data, primeiro, segundo, terceiro, quarto, quinto FROM resultados WHERE banca_id={banca_id_sel} AND date(data) = date('{data_limite_str}') LIMIT 1")
-                res_dia = res_dia_query.get('rows', [])
+                res_dia_data = query(f"SELECT data, primeiro, segundo, terceiro, quarto, quinto FROM resultados WHERE banca_id={banca_id_sel} AND date(data) = date('{data_limite_str}') LIMIT 1")
+                res_dia = res_dia_data.get('rows', [])
                 
                 if not res_dia:
-                    st.error(f"❌ Nenhum sorteio cadastrado para a banca {map_bancas[banca_id_sel]} no dia {data_limite.strftime('%d/%m/%Y')}.")
+                    st.error(f"❌ Nenhum sorteio cadastrado para a banca {map_bancas.get(banca_id_sel, 'Banca')} no dia {data_limite.strftime('%d/%m/%Y')}.")
                 else:
                     l = res_dia[0]
                     premios = [l[1]['value'], l[2]['value'], l[3]['value'], l[4]['value'], l[5]['value']]
@@ -184,7 +180,7 @@ with tab1:
                 res = query(f"SELECT data, primeiro, segundo, terceiro, quarto, quinto FROM resultados WHERE banca_id={banca_id_sel} AND date(data) <= date('{data_limite_str}') ORDER BY date(data) DESC LIMIT 365")
                 linhas = res.get('rows', [])
                 if not linhas:
-                    st.warning(f"Nenhum resultado para {map_bancas[banca_id_sel]} até a data selecionada.")
+                    st.warning(f"Nenhum resultado para {map_bancas.get(banca_id_sel, 'Banca')} até a data selecionada.")
                 else:
                     if premio_sel == "1º Prêmio": 
                         str_map = "1"
@@ -221,6 +217,3 @@ with tab1:
                         nome = map_bicho.get(bicho_id, f"Bicho {bicho_id}")
                         info = ultima_info.get(bicho_id)
                         if info:
-                            dias = (data_base_calculo - info["data"]).days
-                            concursos = info["concursos"]
-                            ultima = info["data"].strftime("%d/%m/%Y")
