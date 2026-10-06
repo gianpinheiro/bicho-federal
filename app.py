@@ -65,7 +65,7 @@ def buscar_federal():
             continue
     return None, None
 
-# Carregamento de Bancas e Bichos usando os seletores funcionais originais do seu banco
+# Carregamento de dados usando sua estrutura original funcional
 bancas_raw = query("SELECT id, nome FROM banca_sorteios ORDER BY nome")['rows']
 bancas_list = [(int(r[0]['value']), r[1]['value']) for r in bancas_raw]
 map_bancas = {id: nome for id, nome in bancas_list}
@@ -74,10 +74,25 @@ bichos_raw = query("SELECT id, nome FROM bicho ORDER BY id")['rows']
 map_bicho = {int(r[0]['value']): r[1]['value'] for r in bichos_raw}
 
 st.title("🎲 Bichos Atrasados")
-tab1, tab2 = st.tabs(["📊 Consultar", "➕ Cadastrar Resultado"])
 
-# ==================== ABA 1: CONSULTAR ====================
-with tab1:
+# --- MENU ALTERNATIVO BLINDADO CONTRA TRAVAMENTOS DE ABA ---
+if "menu_atual" not in st.session_state:
+    st.session_state.menu_atual = "📊 Consultar"
+
+c_menu1, c_menu2 = st.columns(2)
+with c_menu1:
+    if st.button("📊 Consultar Resultados", use_container_width=True, type="primary" if st.session_state.menu_atual == "📊 Consultar" else "secondary"):
+        st.session_state.menu_atual = "📊 Consultar"
+        st.rerun()
+with c_menu2:
+    if st.button("➕ Cadastrar Novo Resultado", use_container_width=True, type="primary" if st.session_state.menu_atual == "➕ Cadastrar" else "secondary"):
+        st.session_state.menu_atual = "➕ Cadastrar"
+        st.rerun()
+
+st.markdown("---")
+
+# ==================== TELA DE CONSULTA ====================
+if st.session_state.menu_atual == "📊 Consultar":
     banca_nomes = [f"{nome} (ID {bid})" for bid, nome in bancas_list]
     sel_banca_idx = st.selectbox("Escolha a BANCA:", banca_nomes, index=0)
     banca_id_sel = bancas_list[banca_nomes.index(sel_banca_idx)][0]
@@ -190,7 +205,7 @@ with tab1:
                     data_base_calculo = datetime.combine(data_limite, datetime.min.time())
                     lista = []
                     for bicho_id in range(1, 26):
-                        name = map_bicho.get(bicho_id, f"Bicho {bicho_id}")
+                        nome = map_bicho.get(bicho_id, f"Bicho {bicho_id}")
                         info = ultima_info.get(bicho_id)
                         if info:
                             dias = (data_base_calculo - info["data"]).days
@@ -198,13 +213,3 @@ with tab1:
                             ultima = info["data"].strftime("%d/%m/%Y")
                         else:
                             dias = 999
-                            concursos = len(linhas)
-                            ultima = "Nunca"
-                        lista.append({"Bicho": f"{bicho_id:02d} - {name}", "Dias": dias, "Concursos": concursos, "Última vez": ultima})
-                    
-                    df = pd.DataFrame(lista).sort_values("Dias", ascending=False).reset_index(drop=True)
-                    df.insert(0, "Col.", [f"{i+1}º" for i in range(len(df))])
-                    
-                    # Linha adicionada para exibir a tabela gerada na tela
-                    st.dataframe(df, use_container_width=True)
-                    
