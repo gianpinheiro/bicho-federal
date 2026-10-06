@@ -65,6 +65,7 @@ def buscar_federal():
             continue
     return None, None
 
+# Busca inicial de dados
 bancas_raw = query("SELECT id, nome FROM banca_sorteios ORDER BY nome")['rows']
 bancas_list = [(int(r[0]['value']), r[1]['value']) for r in bancas_raw]
 map_bancas = {id: nome for id, nome in bancas_list}
@@ -203,7 +204,8 @@ with tab1:
                     df = pd.DataFrame(lista).sort_values("Dias", ascending=False).reset_index(drop=True)
                     df.insert(0, "Col.", [f"{i+1}º" for i in range(len(df))])
                     
-                    # Exibe a tabela formatada na tela
                     st.dataframe(df, use_container_width=True)
                     
                     msg_sucesso = f"✅ {len(linhas)} concursos analisados de {map_bancas[banca_id_sel]} - {premio_sel} (Até {data_limite.strftime('%d/%m/%Y')})"
+                    st.success(msg_sucesso)
+
