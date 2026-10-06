@@ -28,7 +28,12 @@ H = {"Authorization": f"Bearer {TOKEN}", "Content-Type": "application/json"}
 def query(sql):
     payload = {"requests": [{"type":"execute","stmt":{"sql": sql}}]}
     r = requests.post(URL, headers=H, json=payload).json()
-    return r['results'][0]['response']['result']
+    # Retorna diretamente a lista de linhas para evitar quebras
+    try:
+        return r['results'][0]['response']['result']
+    except Exception as e:
+        st.error(f"Erro na resposta do Turso: {e}")
+        return {"rows": []}
 
 def exec_sql(sql):
     payload = {"requests": [{"type":"execute","stmt":{"sql": sql}}]}
@@ -65,13 +70,35 @@ def buscar_federal():
             continue
     return None, None
 
-# Busca inicial de dados
-bancas_raw = query("SELECT id, nome FROM banca_sorteios ORDER BY nome")['rows']
-bancas_list = [(int(r[0]['value']), r[1]['value']) for r in bancas_raw]
-map_bancas = {id: nome for id, nome in bancas_list}
+# --- PROCESSAMENTO SEGURO DOS DADOS DO TURSO ---
+bancas_raw = query("SELECT id, nome FROM banca_sorteios ORDER BY nome").get('rows', [])
+bancas_list = []
+map_bancas = {}
 
-bichos_raw = query("SELECT id, nome FROM bicho ORDER BY id")['rows']
-map_bicho = {int(r[0]['value']): r[1]['value'] for r in bichos_raw}
+for row in bancas_raw:
+    try:
+        # Pega de forma posicional e extrai o dicionário interno do Turso
+        bid = int(row[0]['value'])
+        bnome = str(row[1]['value'])
+        bancas_list.append((bid, bnome))
+        map_bancas[bid] = bnome
+    except Exception as e:
+        continue
+
+bichos_raw = query("SELECT id, nome FROM bicho ORDER BY id").get('rows', [])
+map_bicho = {}
+for row in bichos_raw:
+    try:
+        bicho_id = int(row[0]['value'])
+        bicho_nome = str(row[1]['value'])
+        map_bicho[bicho_id] = bicho_nome
+    except Exception as e:
+        continue
+
+# Fallbacks de segurança caso o banco falhe em responder de primeira
+if not bancas_list:
+    bancas_list = [(1, "Federal")]
+    map_bancas = {1: "Federal"}
 
 st.title("🎲 Bichos Atrasados")
 tab1, tab2 = st.tabs(["📊 Consultar", "➕ Cadastrar Resultado"])
@@ -103,7 +130,8 @@ with tab1:
         btn_ultimo = st.button("👁️ Último jogo", use_container_width=True)
 
     if btn_ultimo:
-        ult = query(f"SELECT data, primeiro, segundo, terceiro, quarto, quinto FROM resultados WHERE banca_id={banca_id_sel} AND date(data) <= date('{data_limite_str}') ORDER BY date(data) DESC LIMIT 1")['rows']
+        ult_res = query(f"SELECT data, primeiro, segundo, terceiro, quarto, quinto FROM resultados WHERE banca_id={banca_id_sel} AND date(data) <= date('{data_limite_str}') ORDER BY date(data) DESC LIMIT 1")
+        ult = ult_res.get('rows', [])
         if not ult:
             st.warning(f"Nenhum jogo cadastrado para {map_bancas[banca_id_sel]} até {data_limite.strftime('%d/%m/%Y')}")
         else:
@@ -134,7 +162,8 @@ with tab1:
     if btn_consultar:
         if premio_sel == "Ver Resultado do Dia":
             with st.spinner("Buscando..."):
-                res_dia = query(f"SELECT data, primeiro, segundo, terceiro, quarto, quinto FROM resultados WHERE banca_id={banca_id_sel} AND date(data) = date('{data_limite_str}') LIMIT 1")['rows']
+                res_dia_query = query(f"SELECT data, primeiro, segundo, terceiro, quarto, quinto FROM resultados WHERE banca_id={banca_id_sel} AND date(data) = date('{data_limite_str}') LIMIT 1")
+                res_dia = res_dia_query.get('rows', [])
                 
                 if not res_dia:
                     st.error(f"❌ Nenhum sorteio cadastrado para a banca {map_bancas[banca_id_sel]} no dia {data_limite.strftime('%d/%m/%Y')}.")
@@ -153,7 +182,7 @@ with tab1:
         else:
             with st.spinner("Analisando..."):
                 res = query(f"SELECT data, primeiro, segundo, terceiro, quarto, quinto FROM resultados WHERE banca_id={banca_id_sel} AND date(data) <= date('{data_limite_str}') ORDER BY date(data) DESC LIMIT 365")
-                linhas = res['rows']
+                linhas = res.get('rows', [])
                 if not linhas:
                     st.warning(f"Nenhum resultado para {map_bancas[banca_id_sel]} até a data selecionada.")
                 else:
@@ -195,17 +224,3 @@ with tab1:
                             dias = (data_base_calculo - info["data"]).days
                             concursos = info["concursos"]
                             ultima = info["data"].strftime("%d/%m/%Y")
-                        else:
-                            dias = 999
-                            concursos = len(linhas)
-                            ultima = "Nunca"
-                        lista.append({"Bicho": f"{bicho_id:02d} - {nome}", "Dias": dias, "Concursos": concursos, "Última vez": ultima})
-                    
-                    df = pd.DataFrame(lista).sort_values("Dias", ascending=False).reset_index(drop=True)
-                    df.insert(0, "Col.", [f"{i+1}º" for i in range(len(df))])
-                    
-                    st.dataframe(df, use_container_width=True)
-                    
-                    msg_sucesso = f"✅ {len(linhas)} concursos analisados de {map_bancas[banca_id_sel]} - {premio_sel} (Até {data_limite.strftime('%d/%m/%Y')})"
-                    st.success(msg_sucesso)
-
