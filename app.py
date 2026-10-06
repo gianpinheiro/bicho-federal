@@ -26,21 +26,13 @@ TOKEN = st.secrets["TURSO_TOKEN"]
 H = {"Authorization": f"Bearer {TOKEN}", "Content-Type": "application/json"}
 
 def query(sql):
-    try:
-        payload = {"requests": [{"type":"execute","stmt":{"sql": sql}}]}
-        r = requests.post(URL, headers=H, json=payload, timeout=15).json()
-        return r['results'][0]['response']['result']
-    except Exception as e:
-        st.error(f"Erro na consulta: {e}")
-        return {"rows": []}
+    payload = {"requests": [{"type":"execute","stmt":{"sql": sql}}]}
+    r = requests.post(URL, headers=H, json=payload).json()
+    return r['results'][0]['response']['result']
 
 def exec_sql(sql):
-    try:
-        payload = {"requests": [{"type":"execute","stmt":{"sql": sql}}]}
-        return requests.post(URL, headers=H, json=payload, timeout=15).json()
-    except Exception as e:
-        st.error(f"Erro na execução: {e}")
-        return None
+    payload = {"requests": [{"type":"execute","stmt":{"sql": sql}}]}
+    return requests.post(URL, headers=H, json=payload).json()
 
 def numero_para_bicho(num_str):
     try:
@@ -73,17 +65,18 @@ def buscar_federal():
             continue
     return None, None
 
-# --- PROCESSAMENTO SEGURO DOS DADOS INICIAIS ---
-bancas_raw = query("SELECT id, nome FROM banca_sorteios ORDER BY nome").get('rows', [])
+# Carregamento de Bancas e Bichos usando os seletores funcionais originais do seu banco
+bancas_raw = query("SELECT id, nome FROM banca_sorteios ORDER BY nome")['rows']
 bancas_list = [(int(r[0]['value']), r[1]['value']) for r in bancas_raw]
 map_bancas = {id: nome for id, nome in bancas_list}
 
-bichos_raw = query("SELECT id, nome FROM bicho ORDER BY id").get('rows', [])
+bichos_raw = query("SELECT id, nome FROM bicho ORDER BY id")['rows']
 map_bicho = {int(r[0]['value']): r[1]['value'] for r in bichos_raw}
 
 st.title("🎲 Bichos Atrasados")
 tab1, tab2 = st.tabs(["📊 Consultar", "➕ Cadastrar Resultado"])
 
+# ==================== ABA 1: CONSULTAR ====================
 with tab1:
     banca_nomes = [f"{nome} (ID {bid})" for bid, nome in bancas_list]
     sel_banca_idx = st.selectbox("Escolha a BANCA:", banca_nomes, index=0)
@@ -111,10 +104,9 @@ with tab1:
         btn_ultimo = st.button("👁️ Último jogo", use_container_width=True)
 
     if btn_ultimo:
-        ult_data = query(f"SELECT data, primeiro, segundo, terceiro, quarto, quinto FROM resultados WHERE banca_id={banca_id_sel} AND date(data) <= date('{data_limite_str}') ORDER BY date(data) DESC LIMIT 1")
-        ult = ult_data.get('rows', [])
+        ult = query(f"SELECT data, primeiro, segundo, terceiro, quarto, quinto FROM resultados WHERE banca_id={banca_id_sel} AND date(data) <= date('{data_limite_str}') ORDER BY date(data) DESC LIMIT 1")['rows']
         if not ult:
-            st.warning(f"Nenhum jogo cadastrado para {map_bancas.get(banca_id_sel)} até {data_limite.strftime('%d/%m/%Y')}")
+            st.warning(f"Nenhum jogo cadastrado para {map_bancas[banca_id_sel]} até {data_limite.strftime('%d/%m/%Y')}")
         else:
             l = ult[0]
             data_ult = l[0]['value']
@@ -128,7 +120,7 @@ with tab1:
             dias_semana = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"]
             dia_semana = dias_semana[dt_obj.weekday()]
 
-            st.markdown(f'<div style="text-align:center; background-color:#e3f2fd; padding:12px; border-radius:8px; margin-bottom:12px; font-weight:bold; color:#0d47a1; font-size:16px;">Último Sorteio considerado: {map_bancas.get(banca_id_sel)} - {data_formatada} ({dia_semana})</div>', unsafe_allow_html=True)
+            st.markdown(f'<div style="text-align:center; background-color:#e3f2fd; padding:12px; border-radius:8px; margin-bottom:12px; font-weight:bold; color:#0d47a1; font-size:16px;">Último Sorteio considerado: {map_bancas[banca_id_sel]} - {data_formatada} ({dia_semana})</div>', unsafe_allow_html=True)
 
             premios = [l[1]['value'], l[2]['value'], l[3]['value'], l[4]['value'], l[5]['value']]
             html = '<div style="text-align:center; background-color:#ffffff; padding:20px; border-radius:12px; border:1px solid #dee2e6; line-height:2.4;">'
@@ -143,11 +135,10 @@ with tab1:
     if btn_consultar:
         if premio_sel == "Ver Resultado do Dia":
             with st.spinner("Buscando..."):
-                res_dia_data = query(f"SELECT data, primeiro, segundo, terceiro, quarto, quinto FROM resultados WHERE banca_id={banca_id_sel} AND date(data) = date('{data_limite_str}') LIMIT 1")
-                res_dia = res_dia_data.get('rows', [])
+                res_dia = query(f"SELECT data, primeiro, segundo, terceiro, quarto, quinto FROM resultados WHERE banca_id={banca_id_sel} AND date(data) = date('{data_limite_str}') LIMIT 1")['rows']
                 
                 if not res_dia:
-                    st.error(f"❌ Nenhum sorteio cadastrado para a banca {map_bancas.get(banca_id_sel)} no dia {data_limite.strftime('%d/%m/%Y')}.")
+                    st.error(f"❌ Nenhum sorteio cadastrado para a banca {map_bancas[banca_id_sel]} no dia {data_limite.strftime('%d/%m/%Y')}.")
                 else:
                     l = res_dia[0]
                     premios = [l[1]['value'], l[2]['value'], l[3]['value'], l[4]['value'], l[5]['value']]
@@ -163,9 +154,9 @@ with tab1:
         else:
             with st.spinner("Analisando..."):
                 res = query(f"SELECT data, primeiro, segundo, terceiro, quarto, quinto FROM resultados WHERE banca_id={banca_id_sel} AND date(data) <= date('{data_limite_str}') ORDER BY date(data) DESC LIMIT 365")
-                linhas = res.get('rows', [])
+                linhas = res['rows']
                 if not linhas:
-                    st.warning(f"Nenhum resultado para {map_bancas.get(banca_id_sel)} até a data selecionada.")
+                    st.warning(f"Nenhum resultado para {map_bancas[banca_id_sel]} até a data selecionada.")
                 else:
                     if premio_sel == "1º Prêmio": 
                         str_map = "1"
@@ -199,7 +190,7 @@ with tab1:
                     data_base_calculo = datetime.combine(data_limite, datetime.min.time())
                     lista = []
                     for bicho_id in range(1, 26):
-                        nome = map_bicho.get(bicho_id, f"Bicho {bicho_id}")
+                        name = map_bicho.get(bicho_id, f"Bicho {bicho_id}")
                         info = ultima_info.get(bicho_id)
                         if info:
                             dias = (data_base_calculo - info["data"]).days
@@ -209,5 +200,11 @@ with tab1:
                             dias = 999
                             concursos = len(linhas)
                             ultima = "Nunca"
-                        lista.append({"Bicho": f"{bicho_id:02d} - {nome}", "Dias": dias, "Concursos": concursos, "Última vez": ultima})
+                        lista.append({"Bicho": f"{bicho_id:02d} - {name}", "Dias": dias, "Concursos": concursos, "Última vez": ultima})
+                    
+                    df = pd.DataFrame(lista).sort_values("Dias", ascending=False).reset_index(drop=True)
+                    df.insert(0, "Col.", [f"{i+1}º" for i in range(len(df))])
+                    
+                    # Linha adicionada para exibir a tabela gerada na tela
+                    st.dataframe(df, use_container_width=True)
                     
