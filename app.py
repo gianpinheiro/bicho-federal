@@ -203,5 +203,7 @@ with tab1:
                     df = pd.DataFrame(lista).sort_values("Dias", ascending=False).reset_index(drop=True)
                     df.insert(0, "Col.", [f"{i+1}º" for i in range(len(df))])
                     
+                    # Exibe a tabela formatada na tela
+                    st.dataframe(df, use_container_width=True)
+                    
                     msg_sucesso = f"✅ {len(linhas)} concursos analisados de {map_bancas[banca_id_sel]} - {premio_sel} (Até {data_limite.strftime('%d/%m/%Y')})"
-                    st.success(msg_sucesso)
